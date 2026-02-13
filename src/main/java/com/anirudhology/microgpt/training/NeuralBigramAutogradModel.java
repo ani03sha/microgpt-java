@@ -73,7 +73,7 @@ public class NeuralBigramAutogradModel {
                 int current = sequences.get(j);
                 int next = sequences.get(j + 1);
                 double[] probabilities = softmaxDoubleRow(current);
-                total += -Math.log(probabilities[next] + 1e-12);
+                total -= Math.log(probabilities[next] + 1e-12);
                 n++;
             }
         }

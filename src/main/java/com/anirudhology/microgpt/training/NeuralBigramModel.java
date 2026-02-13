@@ -1,8 +1,6 @@
 package com.anirudhology.microgpt.training;
 
 import com.anirudhology.microgpt.tokenizer.CharTokenizer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -11,7 +9,6 @@ import java.util.Random;
 
 public class NeuralBigramModel {
 
-    private static final Logger log = LoggerFactory.getLogger(NeuralBigramModel.class);
     private final int vocabularySize;
     private final int bosId;
     private final double[][] weights;
@@ -48,7 +45,7 @@ public class NeuralBigramModel {
                 double[] probabilities = softmax(this.weights[current]);
 
                 // NLL loss: -log(p_true)
-                totalLoss += -Math.log(probabilities[next] + 1e-12);
+                totalLoss -= Math.log(probabilities[next] + 1e-12);
                 totalPairs++;
 
                 // Gradient for softmax + cross-entropy
@@ -72,7 +69,7 @@ public class NeuralBigramModel {
                 int current = sequence.get(t);
                 int next = sequence.get(t + 1);
                 double[] probabilities = softmax(this.weights[current]);
-                totalLoss += -Math.log(probabilities[next] + 1e-12);
+                totalLoss -= Math.log(probabilities[next] + 1e-12);
                 totalPairs++;
             }
         }
