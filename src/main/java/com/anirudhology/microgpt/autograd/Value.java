@@ -61,8 +61,8 @@ public class Value {
     public Value add(Value other) {
         Value out = new Value(this.data + other.data, List.of(this, other), "+", "");
         out.backwardFn = () -> {
-            this.grad += 1.0 * out.grad;
-            other.grad += 1.0 * out.grad;
+            this.grad += out.grad;
+            other.grad += out.grad;
         };
         return out;
     }
@@ -87,18 +87,14 @@ public class Value {
     public Value pow(double exponent) {
         double outData = Math.pow(this.data, exponent);
         Value out = new Value(outData, List.of(this), "pow", "");
-        out.backwardFn = () -> {
-            this.grad += exponent * Math.pow(this.data, exponent - 1.0) * out.grad;
-        };
+        out.backwardFn = () -> this.grad += exponent * Math.pow(this.data, exponent - 1.0) * out.grad;
         return out;
     }
 
     public Value expectation() {
         double outData = Math.exp(this.data);
         Value out = new Value(outData, List.of(this), "exp", "");
-        out.backwardFn = () -> {
-            this.grad += outData * out.grad;
-        };
+        out.backwardFn = () -> this.grad += outData * out.grad;
         return out;
     }
 
@@ -107,18 +103,14 @@ public class Value {
             throw new IllegalArgumentException("Data must be greater than zero. Got " + this.data);
         }
         Value out = new Value(Math.log(this.data), List.of(this), "log", "");
-        out.backwardFn = () -> {
-            this.grad += (1.0 / this.data) * out.grad;
-        };
+        out.backwardFn = () -> this.grad += (1.0 / this.data) * out.grad;
         return out;
     }
 
     public Value relu() {
         double outData = Math.max(0.0, this.data);
         Value out = new Value(outData, List.of(this), "relu", "");
-        out.backwardFn = () -> {
-            this.grad += (this.data > 0.0 ? 1.0 : 0.0) * out.grad;
-        };
+        out.backwardFn = () -> this.grad += (this.data > 0.0 ? 1.0 : 0.0) * out.grad;
         return out;
     }
 
