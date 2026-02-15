@@ -14,7 +14,7 @@ public class ValueDemo {
         y.backward();
 
         System.out.println("poly y=" + y.getData() + " (expected 16.0)");
-        System.out.println("poly dy/dx=" + x.getGrad() + " (expected 8.0)");
+        System.out.println("poly dy/dx=" + x.getGradient() + " (expected 8.0)");
     }
 
     private static void testRelu() {
@@ -23,16 +23,16 @@ public class ValueDemo {
         y.backward();
 
         System.out.println("relu y=" + y.getData() + " (expected 0.0)");
-        System.out.println("relu dy/dx=" + x.getGrad() + " (expected 0.0)");
+        System.out.println("relu dy/dx=" + x.getGradient() + " (expected 0.0)");
     }
 
     private static void testNumericalGradient() {
         double x0 = 1.2;
         Value x = new Value(x0, "x");
-        Value y = x.multiply(x).add(x.expectation()); // f(x)=x^2 + e^x
+        Value y = x.multiply(x).add(x.exp()); // f(x)=x^2 + e^x
         y.backward();
 
-        double analytic = x.getGrad();
+        double analytic = x.getGradient();
 
         double h = 1e-6;
         double fPlus = f(x0 + h);

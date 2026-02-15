@@ -5,24 +5,62 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * This is a computational graph node that:
+ * 1. Stores a number (forward pass)
+ * 2. Tracks how it was created (parent nodes + operation)
+ * 3. Automatically computes gradients (backward pass)
+ * 4. Enables gradient-based optimization without manual derivative calculations
+ * <p>
+ * In simple words, it represents a "smart number" that remembers its history and
+ * can tell you how changing it affects the final output.
+ */
 public class Value {
 
-    // Stores forward value of this node (the actual number)
+    // The actual number (forward value) this node represents.
     private double data;
-    // Stores derivative of final output w.r.t this node (dL/d(this)
-    private double grad;
 
-    // Parents in computation graph (inputs used to make this node)
+    // The derivative of the final output w.r.t this value. Gradient: ∂(output)/∂(this).
+    private double gradient;
+
+    // Parent nodes in computation graph (which values were used to create this value)
     private final List<Value> previous;
-    // Local backpropagation rule for this node.
-    // When run it pushes gradient from this node to its parents.
+
+    // How to propagate gradient backward which means a function that knows how to push
+    // gradients from this node to its parents
     private Runnable backwardFn;
 
-    // To debug metadata
+    // For debugging: "+", "*", "relu", etc.
     private final String operation;
+
+    // For debugging: "x", "w1", etc.
     private final String label;
 
-    // Note: Every operation creates a new node that remembers parents and how to backprop.
+    /**
+     * Every operation creates a new node that remembers its parents:
+     * <p>
+     * Value a = new Value(2.0, "a");
+     * Value b = new Value(3.0, "b");
+     * Value c = a.multiply(b);  // c = a * b = 6.0
+     * Value d = c.add(1.0);     // d = c + 1 = 7.0
+     * Value e = d.relu();       // e = relu(d) = 7.0
+     * <p>
+     * Computational Graph:
+     * a(2.0)    b(3.0)
+     * \        /
+     * \      /
+     * \    /
+     * c = a*b (6.0)
+     * |
+     * d = c+1 (7.0)
+     * |
+     * e = relu(d) (7.0)
+     * <p>
+     * Each node knows:
+     * - Its value (forward pass already computed)
+     * - How it was created (parents + operation)
+     * - How to backpropagate gradients (backward function)
+     */
 
     public Value(double data) {
         this(data, List.of(), "", "");
@@ -34,7 +72,7 @@ public class Value {
 
     private Value(double data, List<Value> previous, String operation, String label) {
         this.data = data;
-        this.grad = 0.0;
+        this.gradient = 0.0;
         this.previous = previous;
         this.operation = operation;
         this.label = label;
@@ -50,19 +88,19 @@ public class Value {
         this.data = data;
     }
 
-    public double getGrad() {
-        return this.grad;
+    public double getGradient() {
+        return this.gradient;
     }
 
-    public void setGrad(double grad) {
-        this.grad = grad;
+    public void setGradient(double gradient) {
+        this.gradient = gradient;
     }
 
     public Value add(Value other) {
         Value out = new Value(this.data + other.data, List.of(this, other), "+", "");
         out.backwardFn = () -> {
-            this.grad += out.grad;
-            other.grad += out.grad;
+            this.gradient += out.gradient; // ∂(out)/∂(this) = 1
+            other.gradient += out.gradient;  // ∂(out)/∂(other) = 1
         };
         return out;
     }
@@ -74,8 +112,8 @@ public class Value {
     public Value multiply(Value other) {
         Value out = new Value(this.data * other.data, List.of(this, other), "*", "");
         out.backwardFn = () -> {
-            this.grad += other.data * out.grad;
-            other.grad += this.data * out.grad;
+            this.gradient += other.data * out.gradient; // ∂(out)/∂(this) = other
+            other.gradient += this.data * out.gradient; // ∂(out)/∂(other) = this
         };
         return out;
     }
@@ -87,14 +125,17 @@ public class Value {
     public Value pow(double exponent) {
         double outData = Math.pow(this.data, exponent);
         Value out = new Value(outData, List.of(this), "pow", "");
-        out.backwardFn = () -> this.grad += exponent * Math.pow(this.data, exponent - 1.0) * out.grad;
+        // ∂(out)/∂(this) = n × this^(n-1)
+        out.backwardFn = () -> this.gradient += exponent * Math.pow(this.data, exponent - 1.0) * out.gradient;
         return out;
     }
 
-    public Value expectation() {
+    public Value exp() {
         double outData = Math.exp(this.data);
         Value out = new Value(outData, List.of(this), "exp", "");
-        out.backwardFn = () -> this.grad += outData * out.grad;
+        // ∂(out)/∂(this) = e^this = out
+        // The derivative of e^x is itself!
+        out.backwardFn = () -> this.gradient += outData * out.gradient;
         return out;
     }
 
@@ -103,14 +144,16 @@ public class Value {
             throw new IllegalArgumentException("Data must be greater than zero. Got " + this.data);
         }
         Value out = new Value(Math.log(this.data), List.of(this), "log", "");
-        out.backwardFn = () -> this.grad += (1.0 / this.data) * out.grad;
+        // ∂(out)/∂(this) = 1/this
+        out.backwardFn = () -> this.gradient += (1.0 / this.data) * out.gradient;
         return out;
     }
 
     public Value relu() {
         double outData = Math.max(0.0, this.data);
         Value out = new Value(outData, List.of(this), "relu", "");
-        out.backwardFn = () -> this.grad += (this.data > 0.0 ? 1.0 : 0.0) * out.grad;
+        // ∂(out)/∂(this) = 1 if this > 0, else 0
+        out.backwardFn = () -> this.gradient += (this.data > 0.0 ? 1.0 : 0.0) * out.gradient;
         return out;
     }
 
@@ -134,26 +177,43 @@ public class Value {
         return this.multiply(1.0 / c);
     }
 
+    /**
+     * Implements multivariate chain rule
+     * <p>
+     * 1. Builds topological order
+     * 2. Initializes output gradient
+     * 3. Calculates reverse topological order
+     */
     public void backward() {
         List<Value> topology = new ArrayList<>();
         Set<Value> visited = new HashSet<>();
+        // Must compute parent gradients before child gradients in reverse
         buildTopology(this, visited, topology);
 
-        this.grad = 1.0;
+        // ∂L/∂L = 1 (output w.r.t.itself)
+        this.gradient = 1.0;
+        // Go from output → inputs, calling each node's backward function.
         for (int i = topology.size() - 1; i >= 0; i--) {
             topology.get(i).backwardFn.run();
         }
     }
 
+    /**
+     * Reset all gradients to 0 before next backward pass.
+     * Gradients accumulate (+=), so must zero them between training steps.
+     */
     public void zeroGradGraph() {
         List<Value> topology = new ArrayList<>();
         Set<Value> visited = new HashSet<>();
         buildTopology(this, visited, topology);
         for (Value v : topology) {
-            v.grad = 0.0;
+            v.gradient = 0.0;
         }
     }
 
+    /**
+     * Orders nodes so that parents come before children
+     */
     private void buildTopology(Value value, Set<Value> visited, List<Value> topology) {
         if (visited.contains(value)) {
             return;
@@ -167,6 +227,6 @@ public class Value {
 
     @Override
     public String toString() {
-        return "Value(data=" + data + ", grad=" + grad + ", operation=" + operation + ", label=" + label + ")";
+        return "Value(data=" + data + ", grad=" + gradient + ", operation=" + operation + ", label=" + label + ")";
     }
 }
