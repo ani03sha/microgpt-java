@@ -162,6 +162,6 @@ public class BaselineBigramModel {
             }
         }
         // Fallback for numerical precision
-        return probabilities.length - 1; // Numeric fallback
+        return probabilities.length - 1;
     }
 }
