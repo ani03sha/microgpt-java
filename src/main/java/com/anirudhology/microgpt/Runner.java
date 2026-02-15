@@ -1,8 +1,8 @@
 package com.anirudhology.microgpt;
 
-import com.anirudhology.microgpt.tokenizer.CharTokenizer;
+import com.anirudhology.microgpt.tokenizer.CharacterTokenizer;
 import com.anirudhology.microgpt.tokenizer.TextCorpus;
-import com.anirudhology.microgpt.training.BigramModel;
+import com.anirudhology.microgpt.training.BaselineBigramModel;
 import com.anirudhology.microgpt.training.NeuralBigramAutogradModel;
 import com.anirudhology.microgpt.training.NeuralBigramModel;
 
@@ -14,27 +14,43 @@ public class Runner {
         TextCorpus textCorpus = new TextCorpus();
         final List<String> docs = textCorpus.readCorpus("input.txt");
 
-        CharTokenizer tokenizer = new CharTokenizer();
+        CharacterTokenizer tokenizer = new CharacterTokenizer();
         tokenizer.buildVocabulary(docs);
 
         int split = (int) (docs.size() * 0.9);
         final List<String> trainDocs = docs.subList(0, split);
         final List<String> validationDocs = docs.subList(split, docs.size());
 
-        // ------------ Baseline Bigram Model ------------
+        runBaselineBigram(tokenizer, docs);
+        runNeuralBigram(tokenizer, trainDocs, validationDocs);
+        runNeuralAutogradBigram(tokenizer, trainDocs, validationDocs);
+    }
 
-        BigramModel model = new BigramModel(tokenizer.getVocabularySize(), tokenizer.getBOSId(), 42L);
-        model.fit(docs, tokenizer, 1.0); // alpha = 0.1 - Laplace smoothing
+    private static void runNeuralAutogradBigram(CharacterTokenizer tokenizer, List<String> trainDocs, List<String> validationDocs) {
+        NeuralBigramAutogradModel neuralBigramAutogradModel = new NeuralBigramAutogradModel(
+                tokenizer.getVocabularySize(),
+                tokenizer.getBOSId(),
+                42L
+        );
 
-        double nll = model.averageNegativeLogLikelihood(docs, tokenizer);
-        System.out.printf("Bigram avg NLL: %.4f%n", nll);
+        double learningRate = 0.5;
+        long epochs = 20;
 
-        System.out.println("\n--- Bigram samples ---");
-        for (int i = 0; i < 20; i++) {
-            System.out.printf("sample %2d: %s%n", i + 1, model.sample(tokenizer, 16));
+        for (int e = 0; e < epochs; e++) {
+            double trainingNll = neuralBigramAutogradModel.train(trainDocs, tokenizer, learningRate, 1000L + e);
+            double validationNll = neuralBigramAutogradModel.averageNegativeLogLikelihood(validationDocs, tokenizer);
+            System.out.printf("Epoch %2d | TrainingNLL %.4f | ValidationNLL %.4f | Learning Rate %.4f%n",
+                    e, trainingNll, validationNll, learningRate);
+            learningRate *= 0.98;
         }
 
-        // ------------- Neural Bigram Model --------------
+        System.out.println("\n--- samples ---");
+        for (int i = 0; i < 20; i++) {
+            System.out.printf("sample %2d: %s%n", i + 1, neuralBigramAutogradModel.sample(tokenizer, 16, 0.9));
+        }
+    }
+
+    private static void runNeuralBigram(CharacterTokenizer tokenizer, List<String> trainDocs, List<String> validationDocs) {
         NeuralBigramModel neuralBigramModel = new NeuralBigramModel(tokenizer.getVocabularySize(), tokenizer.getBOSId(), 42L);
 
         double learningRate = 0.5;
@@ -51,28 +67,18 @@ public class Runner {
         for (int i = 0; i < 20; i++) {
             System.out.printf("sample %2d: %s%n", i + 1, neuralBigramModel.sample(tokenizer, 16, 0.9));
         }
+    }
 
-        // ------------- Neural Bigram Autograd Model --------------
-        NeuralBigramAutogradModel neuralBigramAutogradModel = new NeuralBigramAutogradModel(
-                tokenizer.getVocabularySize(),
-                tokenizer.getBOSId(),
-                42L
-        );
+    private static void runBaselineBigram(CharacterTokenizer tokenizer, List<String> docs) {
+        BaselineBigramModel model = new BaselineBigramModel(tokenizer.getVocabularySize(), tokenizer.getBOSId(), 42L);
+        model.fit(docs, tokenizer, 1.0); // alpha = 0.1 - Laplace smoothing
 
-        learningRate = 0.5;
-        epochs = 20;
+        double nll = model.averageNegativeLogLikelihood(docs, tokenizer);
+        System.out.printf("Bigram avg NLL: %.4f%n", nll);
 
-        for (int e = 0; e < epochs; e++) {
-            double trainingNll = neuralBigramAutogradModel.train(trainDocs, tokenizer, learningRate, 1000L + e);
-            double validationNll = neuralBigramAutogradModel.averageNegativeLogLikelihood(validationDocs, tokenizer);
-            System.out.printf("Epoch %2d | TrainingNLL %.4f | ValidationNLL %.4f | Learning Rate %.4f%n",
-                    e, trainingNll, validationNll, learningRate);
-            learningRate *= 0.98;
-        }
-
-        System.out.println("\n--- samples ---");
+        System.out.println("\n--- Bigram samples ---");
         for (int i = 0; i < 20; i++) {
-            System.out.printf("sample %2d: %s%n", i + 1, neuralBigramAutogradModel.sample(tokenizer, 16, 0.9));
+            System.out.printf("sample %2d: %s%n", i + 1, model.sample(tokenizer, 16));
         }
     }
 }
