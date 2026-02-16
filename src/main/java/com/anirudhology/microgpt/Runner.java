@@ -1,12 +1,17 @@
 package com.anirudhology.microgpt;
 
+import com.anirudhology.microgpt.datasets.NGramDatasetBuilder;
 import com.anirudhology.microgpt.tokenizer.CharacterTokenizer;
 import com.anirudhology.microgpt.tokenizer.TextCorpus;
 import com.anirudhology.microgpt.training.BaselineBigramModel;
+import com.anirudhology.microgpt.training.MLPLanguageModel;
 import com.anirudhology.microgpt.training.NeuralBigramAutogradModel;
 import com.anirudhology.microgpt.training.NeuralBigramModel;
+import com.anirudhology.microgpt.types.TrainingExample;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 
 public class Runner {
 
@@ -24,6 +29,7 @@ public class Runner {
         runBaselineBigram(tokenizer, docs);
         runNeuralBigram(tokenizer, trainDocs, validationDocs);
         runNeuralAutogradBigram(tokenizer, trainDocs, validationDocs);
+        runMLPLanguageModel(tokenizer, docs);
     }
 
     private static void runNeuralAutogradBigram(CharacterTokenizer tokenizer, List<String> trainDocs, List<String> validationDocs) {
@@ -79,6 +85,52 @@ public class Runner {
         System.out.println("\n--- Bigram samples ---");
         for (int i = 0; i < 20; i++) {
             System.out.printf("sample %2d: %s%n", i + 1, model.sample(tokenizer, 16));
+        }
+    }
+
+    private static void runMLPLanguageModel(CharacterTokenizer tokenizer, List<String> documents) {
+        // Build dataset
+        final int blockSize = 3; // Context size
+        final List<TrainingExample> examples = NGramDatasetBuilder.build(documents, tokenizer, blockSize, true);
+
+        // Create model
+        final MLPLanguageModel model = new MLPLanguageModel(tokenizer.getVocabularySize(), blockSize, 10, 100, 42L);
+
+        // Training Loop
+        int epochs = 10;
+        double learningRate = 0.01;
+
+        for (int epoch = 0; epoch < epochs; epoch++) {
+            double totalLoss = 0.0;
+
+            // Shuffle examples in each epoch
+            Collections.shuffle(examples, new Random(42L + epoch));
+
+            for (int i = 0; i < examples.size(); i++) {
+                double loss = model.trainStep(examples.get(i), learningRate);
+                totalLoss += loss;
+
+                // Print progress every 1000 steps
+                if ((i + 1) % 1000 == 0) {
+                    double avgLoss = totalLoss / (i + 1);
+                    System.out.printf("Epoch %d, Step %d/%d, Avg Loss: %.4f%n",
+                            epoch + 1, i + 1, examples.size(), avgLoss);
+                }
+            }
+
+            double averageLoss = totalLoss / examples.size();
+            System.out.printf("Epoch %d complete: Average Loss = %.4f%n", epoch + 1, averageLoss);
+
+            // Decay learning rate
+            learningRate *= 0.9;
+
+            // Generate samples
+            System.out.println("\n--- Samples ---");
+            for (int i = 0; i < 5; i++) {
+                final String sample = model.generate(tokenizer, 20, 1.0);
+                System.out.printf("Sample %d: %s%n", i + 1, sample);
+                System.out.println();
+            }
         }
     }
 }

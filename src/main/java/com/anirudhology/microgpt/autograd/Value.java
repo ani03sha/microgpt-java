@@ -178,6 +178,20 @@ public class Value {
     }
 
     /**
+     * Squashes values to [-1, 1], non-linear (enables complex learning patterns),
+     * and smooth gradients (better than ReLU for small networks)
+     */
+    public Value tanh() {
+        double outData = Math.tanh(this.data);
+        Value out = new Value(outData, List.of(this), "tanh", "");
+        out.backwardFn = () -> {
+            // Derivative of tanh(x) = 1 - tanh²(x)
+            this.gradient += (1.0 - outData * outData) * out.gradient;
+        };
+        return out;
+    }
+
+    /**
      * Implements multivariate chain rule
      * <p>
      * 1. Builds topological order
