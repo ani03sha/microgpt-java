@@ -3,6 +3,7 @@ package com.anirudhology.microgpt.training;
 import com.anirudhology.microgpt.autograd.Value;
 import com.anirudhology.microgpt.layers.Embedding;
 import com.anirudhology.microgpt.layers.Linear;
+import com.anirudhology.microgpt.layers.PositionalEmbedding;
 import com.anirudhology.microgpt.tokenizer.CharacterTokenizer;
 import com.anirudhology.microgpt.types.TrainingExample;
 
@@ -24,6 +25,7 @@ public class MLPLanguageModel {
     private final int blockSize;
 
     private final Embedding embedding;
+    private final PositionalEmbedding positionalEmbedding;
     private final Linear hiddenLayer;
     private final Linear outputLayer;
     private final List<Value> allParameters;
@@ -43,6 +45,8 @@ public class MLPLanguageModel {
 
         // Build layers
         this.embedding = new Embedding(vocabularySize, embeddingDimension, this.random);
+        this.positionalEmbedding = new PositionalEmbedding(blockSize, embeddingDimension, this.random);
+
         int inputDimension = blockSize * embeddingDimension;
         // Flattened embeddings
         this.hiddenLayer = new Linear(inputDimension, hiddenDimension);
@@ -51,6 +55,7 @@ public class MLPLanguageModel {
         // Collect all parameters
         this.allParameters = new ArrayList<>();
         this.allParameters.addAll(this.embedding.parameters());
+        this.allParameters.addAll(this.positionalEmbedding.parameters());
         this.allParameters.addAll(this.hiddenLayer.parameters());
         this.allParameters.addAll(this.outputLayer.parameters());
 
@@ -59,6 +64,8 @@ public class MLPLanguageModel {
 
     /**
      * Forward pass: compute logits for next token
+     * <p>
+     * It is only based on tokens.
      *
      * @param context array of token ids
      * @return logits for each token in vocabulary
@@ -75,13 +82,59 @@ public class MLPLanguageModel {
     }
 
     /**
+     * Forward pass: compute logits for next token.
+     * <p>
+     * It is based on tokens and positions
+     *
+     * @param context array of token ids
+     * @return logits for each token in vocabulary
+     */
+    public Value[] positionalForward(int[] context) {
+        final int sequenceLength = context.length;
+
+        // 1. Get token embeddings for each position
+        final Value[][] tokenEmbeddings = new Value[sequenceLength][];
+        for (int position = 0; position < sequenceLength; position++) {
+            tokenEmbeddings[position] = this.embedding.forward(context[position]);
+        }
+
+        // 2. Get positional embeddings for each position
+        final Value[][] positionalEmbeddings = this.positionalEmbedding.forwardAll(sequenceLength);
+
+        // 3. Combine token and positional embeddings element wise
+        final Value[][] combinedEmbeddings = new Value[sequenceLength][];
+        for (int position = 0; position < sequenceLength; position++) {
+            combinedEmbeddings[position] = new Value[tokenEmbeddings[position].length];
+            for (int dimension = 0; dimension < tokenEmbeddings[position].length; dimension++) {
+                // Add token embeddings and positional embeddings
+                combinedEmbeddings[position][dimension] = tokenEmbeddings[position][dimension].add(positionalEmbeddings[position][dimension]);
+            }
+        }
+
+        // 4. Flatten combined embeddings into single vector
+        final Value[] result = new Value[sequenceLength * tokenEmbeddings[0].length];
+        for (int position = 0; position < sequenceLength; position++) {
+            System.arraycopy(combinedEmbeddings[position], 0, result, position * tokenEmbeddings[0].length, tokenEmbeddings[0].length);
+        }
+
+        // 5. Hidden layer with tanh activation
+        Value[] h = this.hiddenLayer.forward(result);
+        h = tanh(h);
+
+        // 6. Output layer
+        return this.outputLayer.forward(h);
+    }
+
+    /**
      * Compute loss for a training example
      *
      * @param example instance of TrainingExample
      * @return Cross-entropy loss
      */
-    public Value computeLoss(TrainingExample example) {
-        final Value[] logits = forward(example.context());
+    public Value computeLoss(TrainingExample example, boolean shouldUsePositionalEncoding) {
+        final Value[] logits = shouldUsePositionalEncoding
+                ? positionalForward(example.context())
+                : forward(example.context());
         final Value[] probabilities = softmax(logits);
         // Negative log likelihood
         return probabilities[example.target()].log().neg();
@@ -94,9 +147,9 @@ public class MLPLanguageModel {
      * @param learningRate Learning rate
      * @return Loss Value
      */
-    public double trainStep(TrainingExample example, double learningRate) {
+    public double trainStep(TrainingExample example, double learningRate, boolean shouldUsePositionalEncoding) {
         // Forward pass
-        final Value loss = computeLoss(example);
+        final Value loss = computeLoss(example, shouldUsePositionalEncoding);
         double lossValue = loss.getData();
 
         // Zero gradients
@@ -153,7 +206,7 @@ public class MLPLanguageModel {
 
         for (int step = 0; step < maxLength; step++) {
             // Get logits (extract data for sampling)
-            final Value[] logits = forward(context);
+            final Value[] logits = positionalForward(context);
             double[] logitData = new double[this.vocabularySize];
             for (int i = 0; i < this.vocabularySize; i++) {
                 logitData[i] = logits[i].getData() / temperature;

@@ -100,6 +100,8 @@ public class Runner {
         int epochs = 10;
         double learningRate = 0.01;
 
+        boolean shouldUsePositionalEncoding = true;
+
         for (int epoch = 0; epoch < epochs; epoch++) {
             double totalLoss = 0.0;
 
@@ -107,7 +109,7 @@ public class Runner {
             Collections.shuffle(examples, new Random(42L + epoch));
 
             for (int i = 0; i < examples.size(); i++) {
-                double loss = model.trainStep(examples.get(i), learningRate);
+                double loss = model.trainStep(examples.get(i), learningRate, shouldUsePositionalEncoding);
                 totalLoss += loss;
 
                 // Print progress every 1000 steps
