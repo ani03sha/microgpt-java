@@ -49,8 +49,8 @@ public class MLPLanguageModel {
 
         int inputDimension = blockSize * embeddingDimension;
         // Flattened embeddings
-        this.hiddenLayer = new Linear(inputDimension, hiddenDimension);
-        this.outputLayer = new Linear(hiddenDimension, vocabularySize);
+        this.hiddenLayer = new Linear(inputDimension, hiddenDimension, this.random);
+        this.outputLayer = new Linear(hiddenDimension, vocabularySize, this.random);
 
         // Collect all parameters
         this.allParameters = new ArrayList<>();

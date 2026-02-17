@@ -16,13 +16,11 @@ public class Linear {
     private final Value[][] weights;
     private final Value[] bias;
 
-    public Linear(int inputDimension, int outputDimension) {
+    public Linear(int inputDimension, int outputDimension, Random random) {
         this.inputDimension = inputDimension;
         this.outputDimension = outputDimension;
         this.weights = new Value[inputDimension][outputDimension];
         this.bias = new Value[outputDimension];
-
-        final Random random = new Random();
 
         // Xavier/Glorot initialization for better gradient flow
         double scale = Math.sqrt(2.0 / (inputDimension + outputDimension));
