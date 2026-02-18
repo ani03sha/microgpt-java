@@ -3,7 +3,6 @@ package com.anirudhology.microgpt.optimizer;
 import com.anirudhology.microgpt.autograd.Value;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Adam optimizer (Adaptive Moment Estimation).

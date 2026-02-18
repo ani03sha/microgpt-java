@@ -4,7 +4,6 @@ import com.anirudhology.microgpt.autograd.Value;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 
 /**
@@ -16,7 +15,7 @@ import java.util.Random;
  * This is essential for language modeling - we can't peek at the answer
  * when training!
  */
-public class CausalSelfAttention {
+public class CausalSelfAttention implements Attention {
 
     // Q, K, V vector size
     private final int headDimension;
@@ -155,7 +154,7 @@ public class CausalSelfAttention {
      * Sets future positions to -infinity so softmax
      * gives them 0 weight
      */
-    private Value[][] applyCausalMask(Value[][] scores) {
+    private void applyCausalMask(Value[][] scores) {
         final int sequenceLength = scores.length;
         for (int i = 0; i < sequenceLength; i++) { // Query position
             for (int j = i + 1; j < sequenceLength; j++) { // Future key position
@@ -164,7 +163,6 @@ public class CausalSelfAttention {
                 scores[i][j] = new Value(Double.NEGATIVE_INFINITY);
             }
         }
-        return scores;
     }
 
     /**

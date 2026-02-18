@@ -13,7 +13,7 @@ import java.util.Random;
  * to a different subspace.
  * Outputs concatenated back to embeddingDimension.
  */
-public class MultiHeadCausalSelfAttention {
+public class MultiHeadCausalSelfAttention implements Attention {
 
     private final int embeddingDimension;
     private final int numHeads;

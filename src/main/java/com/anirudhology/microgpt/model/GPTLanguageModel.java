@@ -51,9 +51,9 @@ public class GPTLanguageModel {
             int vocabularySize,
             int blockSize,
             int embeddingDimension,
-            /*int headDimension,*/
             int numHeads,
             int numberOfLayers,
+            boolean useMultiHead,
             long seed
     ) {
         this.vocabularySize = vocabularySize;
@@ -68,7 +68,7 @@ public class GPTLanguageModel {
         // Stack transformer blocks
         this.blocks = new ArrayList<>();
         for (int i = 0; i < numberOfLayers; i++) {
-            this.blocks.add(new TransformerBlock(embeddingDimension, numHeads, this.random));
+            this.blocks.add(new TransformerBlock(embeddingDimension, numHeads, useMultiHead, this.random));
         }
 
         this.embeddingNormalization = new RMSNormalization(embeddingDimension);
@@ -87,8 +87,10 @@ public class GPTLanguageModel {
         this.allParameters.addAll(this.finalNormalization.parameters());
         this.allParameters.addAll(this.outputHead.parameters());
 
-        System.out.printf("GPT Model: vocabularySize=%d, blockSize=%d, embeddingDimension=%d, headDimension=%d, layers=%d%n",
-                vocabularySize, blockSize, embeddingDimension, numHeads, numberOfLayers);
+        System.out.printf("GPT Model: vocabularySize=%d, blockSize=%d, embeddingDimension=%d, attention=%s, layers=%d%n",
+                vocabularySize, blockSize, embeddingDimension,
+                useMultiHead ? "multi-head(" + numHeads + ")" : "single-head",
+                numberOfLayers);
         System.out.printf("Total parameters: %d%n", this.allParameters.size());
     }
 
@@ -138,21 +140,11 @@ public class GPTLanguageModel {
         return probabilities[example.target()].log().neg(); // -log(p_true)
     }
 
-    public double trainStep(TrainingExample example, double learningRate) {
-        final Value loss = computeLoss(example);
-        double lossValue = loss.getData();
-
-        zeroGrad();
-        loss.backward();
-
-        // SGD update
-        for (Value parameter : this.allParameters) {
-            parameter.setData(parameter.getData() - learningRate * parameter.getGradient());
-        }
-        return lossValue;
-    }
-
-    public double trainStepOptimized(TrainingExample example) {
+    /**
+     * Forward + backward pass. Returns the loss.
+     * The caller is responsible for zeroing gradients before and stepping the optimizer after.
+     */
+    public double trainStep(TrainingExample example) {
         final Value loss = computeLoss(example);
         double lossValue = loss.getData();
         loss.backward();

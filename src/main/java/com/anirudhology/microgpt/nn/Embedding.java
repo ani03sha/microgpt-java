@@ -70,7 +70,4 @@ public class Embedding {
         return params;
     }
 
-    public int getEmbeddingDimension() {
-        return this.embeddingDimension;
-    }
 }

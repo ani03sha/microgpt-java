@@ -19,29 +19,22 @@ public class TransformerBlock {
 
     // Attention sub-layer
     private final RMSNormalization attentionNormalization;
-    private final MultiHeadCausalSelfAttention attention;
+    private final Attention attention;
 
     // MLP sub-layer
     private final RMSNormalization mlpNormalization;
     private final Linear mlpFc1; // Expand: embeddingDimension -> 4 * embeddingDimension
-    private final Linear mlpFc2; // Contract: 4 * embeddingDimension -> embeddingDimension;
+    private final Linear mlpFc2; // Contract: 4 * embeddingDimension -> embeddingDimension
 
-    /*public TransformerBlock(int embeddingDimension, int headDimension, Random random) {
-
-        // Attention sub-layer
+    /**
+     * @param useMultiHead true  → MultiHeadCausalSelfAttention (splits into numHeads)
+     *                     false → CausalSelfAttention (single head, full embeddingDimension)
+     */
+    public TransformerBlock(int embeddingDimension, int numHeads, boolean useMultiHead, Random random) {
         this.attentionNormalization = new RMSNormalization(embeddingDimension);
-        this.attention = new CausalSelfAttention(embeddingDimension, headDimension, random);
-
-        // MLP sub-layer
-        int mlpHiddenDimension = 4 * embeddingDimension;
-        this.mlpNormalization = new RMSNormalization(embeddingDimension);
-        this.mlpFc1 = new Linear(embeddingDimension, mlpHiddenDimension, random);
-        this.mlpFc2 = new Linear(mlpHiddenDimension, embeddingDimension, random);
-    }*/
-
-    public TransformerBlock(int embeddingDimension, int numHeads, Random random) {
-        this.attentionNormalization = new RMSNormalization(embeddingDimension);
-        this.attention = new MultiHeadCausalSelfAttention(embeddingDimension, numHeads, random);
+        this.attention = useMultiHead
+                ? new MultiHeadCausalSelfAttention(embeddingDimension, numHeads, random)
+                : new CausalSelfAttention(embeddingDimension, embeddingDimension, random);
         int mlpHiddenDimension = 4 * embeddingDimension;
         this.mlpNormalization = new RMSNormalization(embeddingDimension);
         this.mlpFc1 = new Linear(embeddingDimension, mlpHiddenDimension, random);

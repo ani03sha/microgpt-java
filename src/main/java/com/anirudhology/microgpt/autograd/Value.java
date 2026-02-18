@@ -161,20 +161,12 @@ public class Value {
         return this.multiply(-1.0);
     }
 
-    public Value subtract(Value other) {
-        return this.add(other.neg());
-    }
-
     public Value subtract(double c) {
         return this.add(-c);
     }
 
     public Value divide(Value other) {
         return this.multiply(other.pow(-1.0));
-    }
-
-    public Value divide(double c) {
-        return this.multiply(1.0 / c);
     }
 
     /**
@@ -209,19 +201,6 @@ public class Value {
         // Go from output → inputs, calling each node's backward function.
         for (int i = topology.size() - 1; i >= 0; i--) {
             topology.get(i).backwardFn.run();
-        }
-    }
-
-    /**
-     * Reset all gradients to 0 before next backward pass.
-     * Gradients accumulate (+=), so must zero them between training steps.
-     */
-    public void zeroGradGraph() {
-        List<Value> topology = new ArrayList<>();
-        Set<Value> visited = new HashSet<>();
-        buildTopology(this, visited, topology);
-        for (Value v : topology) {
-            v.gradient = 0.0;
         }
     }
 
