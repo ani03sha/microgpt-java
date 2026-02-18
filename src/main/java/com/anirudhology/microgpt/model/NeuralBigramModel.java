@@ -1,4 +1,4 @@
-package com.anirudhology.microgpt.training;
+package com.anirudhology.microgpt.model;
 
 import com.anirudhology.microgpt.tokenizer.CharacterTokenizer;
 

@@ -1,6 +1,5 @@
-package com.anirudhology.microgpt.tokenizer;
+package com.anirudhology.microgpt.data;
 
-import com.anirudhology.microgpt.utils.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +53,7 @@ public class TextCorpus {
 
         try (final HttpClient client = HttpClient.newHttpClient()) {
             final HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(Constants.externalFileUrl))
+                    .uri(URI.create("https://raw.githubusercontent.com/karpathy/makemore/refs/heads/master/names.txt"))
                     .build();
             // Download the file directly to the specified path
             client.send(request, HttpResponse.BodyHandlers.ofFile(targetPath));

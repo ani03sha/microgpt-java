@@ -1,11 +1,11 @@
-package com.anirudhology.microgpt.training;
+package com.anirudhology.microgpt.model;
 
 import com.anirudhology.microgpt.autograd.Value;
-import com.anirudhology.microgpt.layers.Embedding;
-import com.anirudhology.microgpt.layers.Linear;
-import com.anirudhology.microgpt.layers.PositionalEmbedding;
+import com.anirudhology.microgpt.data.TrainingExample;
+import com.anirudhology.microgpt.nn.Embedding;
+import com.anirudhology.microgpt.nn.Linear;
+import com.anirudhology.microgpt.nn.PositionalEmbedding;
 import com.anirudhology.microgpt.tokenizer.CharacterTokenizer;
-import com.anirudhology.microgpt.types.TrainingExample;
 
 import java.util.ArrayList;
 import java.util.Arrays;

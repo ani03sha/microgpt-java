@@ -1,4 +1,4 @@
-package com.anirudhology.microgpt.types;
+package com.anirudhology.microgpt.data;
 
 /**
  * Represents one supervise training sample

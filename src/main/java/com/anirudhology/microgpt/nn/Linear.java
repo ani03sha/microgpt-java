@@ -1,4 +1,4 @@
-package com.anirudhology.microgpt.layers;
+package com.anirudhology.microgpt.nn;
 
 import com.anirudhology.microgpt.autograd.Value;
 
@@ -14,13 +14,11 @@ public class Linear {
     private final int inputDimension;
     private final int outputDimension;
     private final Value[][] weights;
-    private final Value[] bias;
 
     public Linear(int inputDimension, int outputDimension, Random random) {
         this.inputDimension = inputDimension;
         this.outputDimension = outputDimension;
         this.weights = new Value[inputDimension][outputDimension];
-        this.bias = new Value[outputDimension];
 
         // Xavier/Glorot initialization for better gradient flow
         double scale = Math.sqrt(2.0 / (inputDimension + outputDimension));
@@ -29,10 +27,6 @@ public class Linear {
             for (int j = 0; j < outputDimension; j++) {
                 this.weights[i][j] = new Value(random.nextGaussian() * scale);
             }
-        }
-
-        for (int j = 0; j < outputDimension; j++) {
-            this.bias[j] = new Value(0.0); // Initialize bias to zero
         }
     }
 
@@ -52,7 +46,7 @@ public class Linear {
         // For each output neuron
         for (int j = 0; j < this.outputDimension; j++) {
             // Start with bias
-            Value sum = this.bias[j];
+            Value sum = new Value(0.0);
 
             // Add weighted inputs: sum = b + x₀*w₀ⱼ + x₁*w₁ⱼ + ...
             for (int i = 0; i < this.inputDimension; i++) {
@@ -74,11 +68,6 @@ public class Linear {
             for (int j = 0; j < this.outputDimension; j++) {
                 params.add(this.weights[i][j]);
             }
-        }
-
-        // Add biases
-        for (int j = 0; j < this.outputDimension; j++) {
-            params.add(this.bias[j]);
         }
         return params;
     }

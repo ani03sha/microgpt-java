@@ -1,7 +1,6 @@
-package com.anirudhology.microgpt.datasets;
+package com.anirudhology.microgpt.data;
 
 import com.anirudhology.microgpt.tokenizer.CharacterTokenizer;
-import com.anirudhology.microgpt.types.TrainingExample;
 
 import java.util.ArrayList;
 import java.util.Arrays;

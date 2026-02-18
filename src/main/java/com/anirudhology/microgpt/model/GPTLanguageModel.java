@@ -1,13 +1,13 @@
-package com.anirudhology.microgpt.training;
+package com.anirudhology.microgpt.model;
 
 import com.anirudhology.microgpt.autograd.Value;
-import com.anirudhology.microgpt.blocks.TransformerBlock;
-import com.anirudhology.microgpt.layers.Embedding;
-import com.anirudhology.microgpt.layers.Linear;
-import com.anirudhology.microgpt.layers.PositionalEmbedding;
-import com.anirudhology.microgpt.layers.RMSNormalization;
+import com.anirudhology.microgpt.data.TrainingExample;
+import com.anirudhology.microgpt.nn.Embedding;
+import com.anirudhology.microgpt.nn.Linear;
+import com.anirudhology.microgpt.nn.PositionalEmbedding;
+import com.anirudhology.microgpt.nn.RMSNormalization;
+import com.anirudhology.microgpt.nn.TransformerBlock;
 import com.anirudhology.microgpt.tokenizer.CharacterTokenizer;
-import com.anirudhology.microgpt.types.TrainingExample;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,6 +33,9 @@ public class GPTLanguageModel {
     // Transformer blocks (the core!)
     private final List<TransformerBlock> blocks;
 
+    // Normalization applied right after embedding combination
+    private final RMSNormalization embeddingNormalization;
+
     // Final normalization before output
     private final RMSNormalization finalNormalization;
 
@@ -48,7 +51,8 @@ public class GPTLanguageModel {
             int vocabularySize,
             int blockSize,
             int embeddingDimension,
-            int headDimension,
+            /*int headDimension,*/
+            int numHeads,
             int numberOfLayers,
             long seed
     ) {
@@ -64,9 +68,10 @@ public class GPTLanguageModel {
         // Stack transformer blocks
         this.blocks = new ArrayList<>();
         for (int i = 0; i < numberOfLayers; i++) {
-            this.blocks.add(new TransformerBlock(embeddingDimension, headDimension, this.random));
+            this.blocks.add(new TransformerBlock(embeddingDimension, numHeads, this.random));
         }
 
+        this.embeddingNormalization = new RMSNormalization(embeddingDimension);
         // Final normalization + output
         this.finalNormalization = new RMSNormalization(embeddingDimension);
         this.outputHead = new Linear(embeddingDimension, vocabularySize, this.random);
@@ -75,6 +80,7 @@ public class GPTLanguageModel {
         this.allParameters = new ArrayList<>();
         this.allParameters.addAll(this.tokenEmbedding.parameters());
         this.allParameters.addAll(this.positionalEmbedding.parameters());
+        this.allParameters.addAll(this.embeddingNormalization.parameters());
         for (TransformerBlock block : this.blocks) {
             this.allParameters.addAll(block.parameters());
         }
@@ -82,7 +88,7 @@ public class GPTLanguageModel {
         this.allParameters.addAll(this.outputHead.parameters());
 
         System.out.printf("GPT Model: vocabularySize=%d, blockSize=%d, embeddingDimension=%d, headDimension=%d, layers=%d%n",
-                vocabularySize, blockSize, embeddingDimension, headDimension, numberOfLayers);
+                vocabularySize, blockSize, embeddingDimension, numHeads, numberOfLayers);
         System.out.printf("Total parameters: %d%n", this.allParameters.size());
     }
 
@@ -106,6 +112,9 @@ public class GPTLanguageModel {
                 x[position][dimension] = tokenEmbedding[dimension].add(positionEmbedding[dimension]);
             }
         }
+
+        // Step 1b: Normalize embeddings
+        x = this.embeddingNormalization.forward(x);
 
         // Step 2: Pass through all transformer blocks
         for (TransformerBlock block : this.blocks) {

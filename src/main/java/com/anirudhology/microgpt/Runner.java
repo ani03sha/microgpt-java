@@ -1,15 +1,15 @@
 package com.anirudhology.microgpt;
 
-import com.anirudhology.microgpt.datasets.NGramDatasetBuilder;
+import com.anirudhology.microgpt.data.NGramDatasetBuilder;
+import com.anirudhology.microgpt.data.TextCorpus;
+import com.anirudhology.microgpt.data.TrainingExample;
+import com.anirudhology.microgpt.model.BaselineBigramModel;
+import com.anirudhology.microgpt.model.GPTLanguageModel;
+import com.anirudhology.microgpt.model.MLPLanguageModel;
+import com.anirudhology.microgpt.model.NeuralBigramAutogradModel;
+import com.anirudhology.microgpt.model.NeuralBigramModel;
 import com.anirudhology.microgpt.optimizer.AdamOptimizer;
 import com.anirudhology.microgpt.tokenizer.CharacterTokenizer;
-import com.anirudhology.microgpt.tokenizer.TextCorpus;
-import com.anirudhology.microgpt.training.BaselineBigramModel;
-import com.anirudhology.microgpt.training.GPTLanguageModel;
-import com.anirudhology.microgpt.training.MLPLanguageModel;
-import com.anirudhology.microgpt.training.NeuralBigramAutogradModel;
-import com.anirudhology.microgpt.training.NeuralBigramModel;
-import com.anirudhology.microgpt.types.TrainingExample;
 
 import java.util.Collections;
 import java.util.List;
@@ -145,6 +145,7 @@ public class Runner {
         final int embeddingDimension = 16;
         final int headDimension = 16;
         final int numberOfLayers = 1;
+        int numHeads = 4;
 
         // Build dataset
         final List<TrainingExample> examples = NGramDatasetBuilder.build(documents, tokenizer, blockSize, true);
@@ -155,7 +156,8 @@ public class Runner {
                 tokenizer.getVocabularySize(),
                 blockSize,
                 embeddingDimension,
-                headDimension,
+                /*headDimension,*/
+                numHeads,
                 numberOfLayers,
                 42L
         );

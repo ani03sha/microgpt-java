@@ -1,4 +1,4 @@
-package com.anirudhology.microgpt.layers;
+package com.anirudhology.microgpt.nn;
 
 import com.anirudhology.microgpt.autograd.Value;
 

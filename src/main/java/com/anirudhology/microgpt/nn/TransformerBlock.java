@@ -1,9 +1,6 @@
-package com.anirudhology.microgpt.blocks;
+package com.anirudhology.microgpt.nn;
 
-import com.anirudhology.microgpt.attention.CausalSelfAttention;
 import com.anirudhology.microgpt.autograd.Value;
-import com.anirudhology.microgpt.layers.Linear;
-import com.anirudhology.microgpt.layers.RMSNormalization;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,20 +19,29 @@ public class TransformerBlock {
 
     // Attention sub-layer
     private final RMSNormalization attentionNormalization;
-    private final CausalSelfAttention attention;
+    private final MultiHeadCausalSelfAttention attention;
 
     // MLP sub-layer
     private final RMSNormalization mlpNormalization;
     private final Linear mlpFc1; // Expand: embeddingDimension -> 4 * embeddingDimension
     private final Linear mlpFc2; // Contract: 4 * embeddingDimension -> embeddingDimension;
 
-    public TransformerBlock(int embeddingDimension, int headDimension, Random random) {
+    /*public TransformerBlock(int embeddingDimension, int headDimension, Random random) {
 
         // Attention sub-layer
         this.attentionNormalization = new RMSNormalization(embeddingDimension);
         this.attention = new CausalSelfAttention(embeddingDimension, headDimension, random);
 
         // MLP sub-layer
+        int mlpHiddenDimension = 4 * embeddingDimension;
+        this.mlpNormalization = new RMSNormalization(embeddingDimension);
+        this.mlpFc1 = new Linear(embeddingDimension, mlpHiddenDimension, random);
+        this.mlpFc2 = new Linear(mlpHiddenDimension, embeddingDimension, random);
+    }*/
+
+    public TransformerBlock(int embeddingDimension, int numHeads, Random random) {
+        this.attentionNormalization = new RMSNormalization(embeddingDimension);
+        this.attention = new MultiHeadCausalSelfAttention(embeddingDimension, numHeads, random);
         int mlpHiddenDimension = 4 * embeddingDimension;
         this.mlpNormalization = new RMSNormalization(embeddingDimension);
         this.mlpFc1 = new Linear(embeddingDimension, mlpHiddenDimension, random);

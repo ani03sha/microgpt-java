@@ -1,7 +1,6 @@
-package com.anirudhology.microgpt.attention;
+package com.anirudhology.microgpt.nn;
 
 import com.anirudhology.microgpt.autograd.Value;
-import com.anirudhology.microgpt.layers.Linear;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,9 +18,6 @@ import java.util.Random;
  */
 public class CausalSelfAttention {
 
-    // Input/output embedding size
-    private final int embeddingDimension;
-
     // Q, K, V vector size
     private final int headDimension;
 
@@ -35,7 +31,7 @@ public class CausalSelfAttention {
     private final Linear outputProjection;
 
     public CausalSelfAttention(int embeddingDimension, int headDimension, Random random) {
-        this.embeddingDimension = embeddingDimension;
+        // Input/output embedding size
         this.headDimension = headDimension;
 
         // Initialize all four projection layers
