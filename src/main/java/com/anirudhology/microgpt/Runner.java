@@ -1,6 +1,7 @@
 package com.anirudhology.microgpt;
 
 import com.anirudhology.microgpt.datasets.NGramDatasetBuilder;
+import com.anirudhology.microgpt.optimizer.AdamOptimizer;
 import com.anirudhology.microgpt.tokenizer.CharacterTokenizer;
 import com.anirudhology.microgpt.tokenizer.TextCorpus;
 import com.anirudhology.microgpt.training.BaselineBigramModel;
@@ -159,7 +160,37 @@ public class Runner {
                 42L
         );
 
-        // Training
+        // Create Adam Optimizer
+        final AdamOptimizer optimizer = new AdamOptimizer(model.parameters());
+
+        int numberOfSteps = 1000;
+        double initialLearningRate = 0.01;
+        double runningLoss = 0.0;
+        double smoothing = 0.95; // Exponential moving average
+
+        for (int step = 0; step < numberOfSteps; step++) {
+            // Linear LR decay: starts at 0.01, reaches 0 at final step
+            double learningRate = initialLearningRate * (1.0 - (double) step / numberOfSteps);
+
+            // Zero gradients -> forward -> backward -> Adam step
+            optimizer.zeroGradient(model.parameters());
+            double loss = model.trainStepOptimized(examples.get(step % examples.size()));
+            optimizer.step(model.parameters(), learningRate);
+
+            // Smooth the loss
+            runningLoss = smoothing * runningLoss + (1 - smoothing) * loss;
+
+            if ((step + 1) % 100 == 0) {
+                System.out.printf("Step %4d / %4d | Loss: %.4f | LR: %.6f%n", step + 1, numberOfSteps, loss, learningRate);
+            }
+        }
+
+        System.out.println("\n--- Samples ---");
+        for (int i = 0; i < 10; i++) {
+            System.out.printf("Sample %d: %s%n", i + 1, model.generate(tokenizer, 20, 0.5));
+        }
+
+        /*// Training
         int epochs = 10;
         double learningRate = 0.01;
 
@@ -195,6 +226,6 @@ public class Runner {
                 System.out.printf("Sample %d: %s%n", i + 1, model.generate(tokenizer, 20, 1.0));
             }
             System.out.println();
-        }
+        }*/
     }
 }

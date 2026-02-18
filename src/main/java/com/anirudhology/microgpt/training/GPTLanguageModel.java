@@ -143,6 +143,17 @@ public class GPTLanguageModel {
         return lossValue;
     }
 
+    public double trainStepOptimized(TrainingExample example) {
+        final Value loss = computeLoss(example);
+        double lossValue = loss.getData();
+        loss.backward();
+        return lossValue;
+    }
+
+    public List<Value> parameters() {
+        return this.allParameters;
+    }
+
     public String generate(CharacterTokenizer tokenizer, int maxLength, double temperature) {
         final List<Integer> generated = new ArrayList<>();
         final int bosId = tokenizer.getBOSId();
