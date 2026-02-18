@@ -2,7 +2,6 @@ package com.anirudhology.microgpt.layers;
 
 import com.anirudhology.microgpt.autograd.Value;
 
-import javax.management.ValueExp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -23,13 +22,11 @@ public class RMSNormalization {
 
     // Small constant to prevent division by zero
     private static final double EPSILON = 1e-5;
-    private final int dimension;
     // Learnable scale parameter (one per dimension)
     // Initialized to 1.0 so initially it is a no-op
     private final Value[] gamma;
 
     public RMSNormalization(int dimension) {
-        this.dimension = dimension;
         this.gamma = new Value[dimension];
 
         // Initialize gamma to 1.0 - identity transform initially
