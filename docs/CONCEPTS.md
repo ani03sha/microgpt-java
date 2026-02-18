@@ -1,8 +1,7 @@
 # MicroGPT Java — Concepts & Progression Guide
 
-A Java implementation of Andrej Karpathy's [MicroGPT](https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95) — a minimal transformer language model built from scratch with no external ML dependencies.
-
-This document walks through every concept in the project in the order they appear, from the simplest statistical baseline to the full transformer. Each section explains the *what*, the *why*, and the *how*.
+This document walks through every concept in the project in the order they appear, from the simplest statistical
+baseline to the full transformer. Each section explains the *what*, the *why*, and the *how*.
 
 ---
 
@@ -19,7 +18,6 @@ This document walks through every concept in the project in the order they appea
 9. [Step 6 — GPT Transformer (Multi-Head)](#9-step-6--gpt-transformer-multi-head)
 10. [Optimization: Adam](#10-optimization-adam)
 11. [Design Decisions](#11-design-decisions)
-12. [Package Structure](#12-package-structure)
 
 ---
 
@@ -27,11 +25,15 @@ This document walks through every concept in the project in the order they appea
 
 The goal is simple: **given a sequence of characters, predict the next character**.
 
-We train on a list of names (e.g. `emma`, `olivia`, `noah`). After training, the model generates new names that look plausible — it has learned the statistical patterns of how characters follow each other in names.
+We train on a list of names (e.g. `emma`, `olivia`, `noah`). After training, the model generates new names that look
+plausible, thus, it has learned the statistical patterns of how characters follow each other in names.
 
-**Why names?** They are short, structured enough to show real learning, but simple enough to train from scratch in minutes.
+**Why names?** They are short, structured enough to show real learning, but simple enough to train from scratch in
+minutes.
 
-**Autoregressive generation**: at inference time, we feed the model a context, sample the next character, append it to the context, and repeat — generating one character at a time. This is called *autoregressive* because each output becomes part of the next input.
+**Autoregressive generation**: at inference time, we feed the model a context, sample the next character, append it to
+the context, and repeat — generating one character at a time. This is called *autoregressive* because each output
+becomes part of the next input.
 
 **Loss metric — Negative Log-Likelihood (NLL)**:
 
@@ -58,6 +60,7 @@ a=0, b=1, c=2, ..., z=25, <BOS>=26
 ```
 
 **BOS (Beginning of Sequence)** is a special token with the highest ID (`vocabSize - 1 = 26`). It serves two purposes:
+
 1. As the *starting signal* when generating — the model begins with BOS and predicts the first character
 2. As the *end signal* — the model learns to emit BOS when the name is complete
 
@@ -71,7 +74,8 @@ This surrounds each name with BOS so the model learns both how names start and h
 
 **Files**: `data/TextCorpus.java`, `data/NGramDatasetBuilder.java`, `data/TrainingExample.java`
 
-`TextCorpus` downloads `names.txt` from Karpathy's makemore repo if not present, then reads, trims, and shuffles all names.
+`TextCorpus` downloads `names.txt` from Karpathy's makemore repo if not present, then reads, trims, and shuffles all
+names.
 
 `NGramDatasetBuilder` turns the documents into a flat list of `(context, target)` pairs using a *sliding window*:
 
@@ -88,7 +92,8 @@ context=[12, 12,  0], target=26  (predict BOS=end from "mma")
 `TrainingExample` is a simple record:
 
 ```java
-public record TrainingExample(int[] context, int target) {}
+public record TrainingExample(int[] context, int target) {
+}
 ```
 
 ---
@@ -100,6 +105,7 @@ public record TrainingExample(int[] context, int target) {}
 The simplest possible language model: **count how often each character follows each other character**, then normalize.
 
 ### Counting
+
 ```
 counts[i][j] = how many times character j follows character i
 ```
@@ -107,7 +113,9 @@ counts[i][j] = how many times character j follows character i
 After seeing all names, we get a 27×27 table of co-occurrence counts.
 
 ### Laplace Smoothing
-Without smoothing, unseen character pairs would have probability 0, causing `log(0) = -∞`. We add a small constant `alpha` to every count:
+
+Without smoothing, unseen character pairs would have probability 0, causing `log(0) = -∞`. We add a small constant
+`alpha` to every count:
 
 ```
 P(j | i) = (counts[i][j] + alpha) / sum_k(counts[i][k] + alpha)
@@ -116,20 +124,31 @@ P(j | i) = (counts[i][j] + alpha) / sum_k(counts[i][k] + alpha)
 This ensures every transition has at least some probability, acting as a *prior* that all transitions are possible.
 
 ### Sampling
-To generate a character, we sample from a probability distribution using the **CDF (Cumulative Distribution Function) trick**:
+
+To generate a character, we sample from a probability distribution using the **CDF (Cumulative Distribution Function)
+trick**:
 
 ```java
-double r = random.nextDouble();  // uniform in [0, 1)
-double cdf = 0.0;
-for (int i = 0; i < probs.length; i++) {
-    cdf += probs[i];
-    if (r <= cdf) return i;      // found the sampled character
+private int sampleFromDistribution(double[] probabilities) {
+    // Random number in [0, 1)
+    double r = this.random.nextDouble();
+    // Cumulative distribution function
+    double cdf = 0.0;
+    for (int i = 0; i < probabilities.length; i++) {
+        cdf += probabilities[i];
+        if (r <= cdf) {
+            return i;
+        }
+    }
+    // Fallback for numerical precision
+    return probabilities.length - 1;
 }
 ```
 
 This correctly samples each character proportional to its probability.
 
 ### Baseline NLL
+
 This model achieves ~2.45 NLL. Any neural model that can't beat this isn't learning anything useful.
 
 ---
@@ -141,9 +160,12 @@ This model achieves ~2.45 NLL. Any neural model that can't beat this isn't learn
 Same prediction task, but instead of a count table we use a **learned weight matrix** and gradient descent.
 
 ### Logits
-The weight matrix `W[27][27]` holds raw unnormalized scores called *logits*. The value `W[i][j]` represents "how likely is character j to follow character i" — but as a real number (positive or negative), not a probability.
+
+The weight matrix `W[27][27]` holds raw unnormalized scores called *logits*. The value `W[i][j]` represents "how likely
+is character j to follow character i" — but as a real number (positive or negative), not a probability.
 
 ### Softmax
+
 We convert logits to a valid probability distribution:
 
 ```
@@ -151,20 +173,25 @@ softmax(z)_j = exp(z_j) / sum_k exp(z_k)
 ```
 
 Properties:
+
 - All outputs are in (0, 1)
 - Outputs sum to 1
 - Higher logit → higher probability
 
-**Numerical stability**: subtract the maximum logit before exponentiating. `exp(z - max)` gives identical probabilities but avoids overflow.
+**Numerical stability**: subtract the maximum logit before exponentiating. `exp(z - max)` gives identical probabilities
+but avoids overflow.
 
 ### Cross-Entropy Loss
+
 ```
 loss = -log(P(correct_char))
 ```
 
-Combined with softmax, this is called *cross-entropy loss*. It penalizes the model heavily when it assigns low probability to the correct answer.
+Combined with softmax, this is called *cross-entropy loss*. It penalizes the model heavily when it assigns low
+probability to the correct answer.
 
 ### Manual Gradient
+
 For softmax + cross-entropy, the gradient has a closed-form:
 
 ```
@@ -175,6 +202,7 @@ dL/dlogit_j = p_j - 1(j == target)
 - For all other characters: gradient = `p` (positive → decrease these logits)
 
 ### SGD Update
+
 ```
 weight -= learning_rate * gradient
 ```
@@ -182,7 +210,9 @@ weight -= learning_rate * gradient
 We subtract because we want to go in the direction that *decreases* the loss (gradient descent).
 
 ### Temperature
+
 At inference time, we divide logits by a temperature `T` before softmax:
+
 - `T < 1` (e.g. 0.5): sharper distribution, more confident, less random
 - `T = 1`: unmodified
 - `T > 1`: flatter distribution, more random/creative
@@ -193,40 +223,47 @@ At inference time, we divide logits by a temperature `T` before softmax:
 
 **File**: `autograd/Value.java`
 
-Computing gradients by hand works for simple models, but becomes impractical as models grow. We need a system that computes gradients automatically.
+Computing gradients by hand works for simple models, but becomes impractical as models grow. We need a system that
+computes gradients automatically.
 
 ### The Computational Graph
+
 Every operation creates a **computation graph** — a directed acyclic graph where:
+
 - **Nodes** are scalar values (`Value` objects)
 - **Edges** connect each result to its inputs
 
 Every `Value` stores:
+
 - `data` — the forward-pass result
 - `gradient` — accumulated gradient from the backward pass
 - `children` — the `Value` objects this was computed from
 - `backwardFn` — a lambda that computes how to propagate gradient to children
 
 ### Chain Rule
+
 Backpropagation is just the chain rule applied systematically:
 
 ```
 dL/dx = dL/d(output) * d(output)/dx
 ```
 
-Where `dL/d(output)` is the gradient flowing in from above, and `d(output)/dx` is the *local gradient* — how this operation affects its inputs.
+Where `dL/d(output)` is the gradient flowing in from above, and `d(output)/dx` is the *local gradient* — how this
+operation affects its inputs.
 
 ### Operations and their Local Gradients
 
-| Operation | Forward | Local gradient for x | Local gradient for y |
-|-----------|---------|---------------------|---------------------|
-| `x + y` | `x.data + y.data` | 1 | 1 |
-| `x * y` | `x.data * y.data` | `y.data` | `x.data` |
-| `x^n` | `x.data^n` | `n * x.data^(n-1)` | — |
-| `exp(x)` | `e^x.data` | `e^x.data` | — |
-| `log(x)` | `ln(x.data)` | `1 / x.data` | — |
-| `relu(x)` | `max(0, x.data)` | `1 if x.data > 0 else 0` | — |
+| Operation | Forward           | Local gradient for x     | Local gradient for y |
+|-----------|-------------------|--------------------------|----------------------|
+| `x + y`   | `x.data + y.data` | 1                        | 1                    |
+| `x * y`   | `x.data * y.data` | `y.data`                 | `x.data`             |
+| `x^n`     | `x.data^n`        | `n * x.data^(n-1)`       | —                    |
+| `exp(x)`  | `e^x.data`        | `e^x.data`               | —                    |
+| `log(x)`  | `ln(x.data)`      | `1 / x.data`             | —                    |
+| `relu(x)` | `max(0, x.data)`  | `1 if x.data > 0 else 0` | —                    |
 
 ### Backward Pass
+
 `backward()` runs the chain rule through the entire graph:
 
 ```java
@@ -244,10 +281,13 @@ public void backward() {
 }
 ```
 
-**Topological sort** ensures we always process a node *after* all nodes that depend on it have already propagated their gradient contributions.
+**Topological sort** ensures we always process a node *after* all nodes that depend on it have already propagated their
+gradient contributions.
 
 ### Gradient Accumulation
-Gradients are *accumulated* (`+=`) not overwritten. This handles cases where the same `Value` is used in multiple operations. Before each training step, all gradients must be zeroed.
+
+Gradients are *accumulated* (`+=`) not overwritten. This handles cases where the same `Value` is used in multiple
+operations. Before each training step, all gradients must be zeroed.
 
 ---
 
@@ -255,9 +295,11 @@ Gradients are *accumulated* (`+=`) not overwritten. This handles cases where the
 
 **Files**: `model/MLPLanguageModel.java`, `nn/Embedding.java`, `nn/PositionalEmbedding.java`, `nn/Linear.java`
 
-The bigram only looks at one previous character. We want to look at `N` previous characters (context window). This requires moving from a lookup table to a proper neural network.
+The bigram only looks at one previous character. We want to look at `N` previous characters (context window). This
+requires moving from a lookup table to a proper neural network.
 
 ### Token Embeddings
+
 **File**: `nn/Embedding.java`
 
 An embedding table maps each token ID to a dense vector of floats:
@@ -266,9 +308,11 @@ An embedding table maps each token ID to a dense vector of floats:
 Embedding[vocabularySize][embeddingDimension]
 ```
 
-Instead of a one-hot vector (sparse, 27 dimensions), each token gets a 10-dimensional dense vector that the model learns to place in a meaningful space. Semantically similar characters end up near each other.
+Instead of a one-hot vector (sparse, 27 dimensions), each token gets a 10-dimensional dense vector that the model learns
+to place in a meaningful space. Semantically similar characters end up near each other.
 
 ### Positional Embeddings
+
 **File**: `nn/PositionalEmbedding.java`
 
 A second lookup table maps each *position* in the context to its own learned vector:
@@ -277,20 +321,35 @@ A second lookup table maps each *position* in the context to its own learned vec
 PositionalEmbedding[blockSize][embeddingDimension]
 ```
 
-This tells the model *where* in the context each character appears, since position matters ("a" at position 0 vs position 2 carry different information).
+This tells the model *where* in the context each character appears, since position matters ("a" at position 0 vs
+position 2 carry different information).
 
 ### Linear Layer (No Bias)
+
 **File**: `nn/Linear.java`
 
 A fully-connected layer: `output = input @ W`
 
 ```java
-for (int j = 0; j < outputDimension; j++) {
-    Value sum = new Value(0.0);
-    for (int i = 0; i < inputDimension; i++) {
-        sum = sum.add(input[i].multiply(weights[i][j]));
+public Value[] forward(Value[] input) {
+    if (input.length != this.inputDimension) {
+        throw new IllegalArgumentException(String.format("Expected input size %d, got %d", this.inputDimension, input.length));
     }
-    output[j] = sum;
+
+    Value[] output = new Value[this.outputDimension];
+
+    // For each output neuron
+    for (int j = 0; j < this.outputDimension; j++) {
+        // Start with bias
+        Value sum = new Value(0.0);
+
+        // Add weighted inputs: sum = b + x₀*w₀ⱼ + x₁*w₁ⱼ + ...
+        for (int i = 0; i < this.inputDimension; i++) {
+            sum = sum.add(input[i].multiply(this.weights[i][j]));
+        }
+        output[j] = sum;
+    }
+    return output;
 }
 ```
 
@@ -303,7 +362,8 @@ weight ~ Gaussian(0, scale)
 
 This keeps the variance of activations roughly constant through layers, preventing vanishing or exploding gradients.
 
-**No bias**: Modern transformers omit bias terms. Normalization layers (RMSNorm) already handle the shift, and biases add parameters without much benefit.
+**No bias**: Modern transformers omit bias terms. Normalization layers (RMSNorm) already handle the shift, and biases
+add parameters without much benefit.
 
 ### MLP Architecture
 
@@ -323,7 +383,9 @@ logits [vocabularySize]
 ```
 
 ### Tanh Activation
+
 The hidden layer uses tanh (hyperbolic tangent):
+
 - Output range: (-1, 1)
 - Smooth, differentiable, zero-centred
 - Squashes large values, preventing the hidden layer from growing unboundedly
@@ -334,9 +396,11 @@ The hidden layer uses tanh (hyperbolic tangent):
 
 **Files**: `nn/CausalSelfAttention.java`, `nn/TransformerBlock.java`, `model/GPTLanguageModel.java`
 
-The MLP mixes all context positions together by flattening. Attention is different — it lets each position *selectively focus* on other positions.
+The MLP mixes all context positions together by flattening. Attention is different — it lets each position *selectively
+focus* on other positions.
 
 ### RMSNorm
+
 **File**: `nn/RMSNormalization.java`
 
 Root Mean Square Normalization stabilizes training by normalizing activations:
@@ -353,6 +417,7 @@ output[i] = x[i] / RMS(x) * gamma[i]
 Applied *before* each sub-layer (Pre-Norm style), which is more stable than Post-Norm.
 
 ### Causal Self-Attention
+
 **File**: `nn/CausalSelfAttention.java`
 
 Attention lets each position query all previous positions and ask: *which positions are most relevant to me right now?*
@@ -360,6 +425,7 @@ Attention lets each position query all previous positions and ask: *which positi
 **Step 1: Project to Q, K, V**
 
 Each input vector is linearly projected to three vectors:
+
 - **Query (Q)**: "what am I looking for?"
 - **Key (K)**: "what do I contain?"
 - **Value (V)**: "what will I contribute if attended to?"
@@ -378,15 +444,24 @@ scores[i][j] = dot(Q[i], K[j]) / sqrt(headDim)
 
 `scores[i][j]` = how much position `i` should attend to position `j`.
 
-The `sqrt(headDim)` scaling prevents the dot products from growing too large (which would push softmax into a near-zero-gradient region).
+The `sqrt(headDim)` scaling prevents the dot products from growing too large (which would push softmax into a
+near-zero-gradient region).
 
 **Step 3: Causal mask**
 
-Language modeling requires that position `i` can only see positions `≤ i` (not the future). We set future positions to `-∞` before softmax:
+Language modeling requires that position `i` can only see positions `≤ i` (not the future). We set future positions to
+`-∞` before softmax:
 
 ```java
-for (int j = i + 1; j < seqLen; j++) {
-    scores[i][j] = new Value(Double.NEGATIVE_INFINITY);
+private void applyCausalMask(Value[][] scores) {
+    final int sequenceLength = scores.length;
+    for (int i = 0; i < sequenceLength; i++) { // Query position
+        for (int j = i + 1; j < sequenceLength; j++) { // Future key position
+            // Replace with -infinity
+            // exp(-∞) = 0 after softmax → zero attention to future!
+            scores[i][j] = new Value(Double.NEGATIVE_INFINITY);
+        }
+    }
 }
 ```
 
@@ -399,7 +474,8 @@ attnWeights = softmax(scores)          [seqLen × seqLen]
 output[i] = sum_j(attnWeights[i][j] * V[j])   [seqLen × headDim]
 ```
 
-Each output is a weighted average of all (visible) value vectors, where the weights come from how relevant each position's key was to the current query.
+Each output is a weighted average of all (visible) value vectors, where the weights come from how relevant each
+position's key was to the current query.
 
 **Step 5: Output projection**
 
@@ -410,6 +486,7 @@ output = attended @ W_o    [seqLen × embDim]
 Projects back to the original embedding dimension.
 
 ### Transformer Block (Pre-Norm with Residuals)
+
 **File**: `nn/TransformerBlock.java`
 
 A full transformer block has two sub-layers, each with a *residual connection*:
@@ -422,17 +499,21 @@ x = x + Attention(RMSNorm(x))
 x = x + MLP(RMSNorm(x))
 ```
 
-**Residual connections** (skip connections) allow gradients to flow directly through the network without passing through every layer. This solves the vanishing gradient problem and makes very deep networks trainable.
+**Residual connections** (skip connections) allow gradients to flow directly through the network without passing through
+every layer. This solves the vanishing gradient problem and makes very deep networks trainable.
 
 **MLP inside the block** (position-wise feedforward):
+
 ```
 hidden = ReLU(x @ W_fc1)     embDim → 4*embDim  (expand)
 output = hidden @ W_fc2       4*embDim → embDim  (contract)
 ```
 
-The 4× expansion gives the network capacity to learn complex per-position transformations. ReLU activation introduces non-linearity.
+The 4× expansion gives the network capacity to learn complex per-position transformations. ReLU activation introduces
+non-linearity.
 
 ### GPT Language Model
+
 **File**: `model/GPTLanguageModel.java`
 
 ```
@@ -449,7 +530,8 @@ x [seqLen × embDim]
 logits [vocabularySize]
 ```
 
-Only the **last position's** output is used to predict the next token — it has attended to all previous positions and aggregates the full context.
+Only the **last position's** output is used to predict the next token — it has attended to all previous positions and
+aggregates the full context.
 
 ---
 
@@ -457,9 +539,11 @@ Only the **last position's** output is used to predict the next token — it has
 
 **Files**: `nn/MultiHeadCausalSelfAttention.java`, `nn/Attention.java`
 
-A single attention head looks at all positions through one "lens". **Multi-head attention** runs several independent heads in parallel, each attending to a different subspace of the embedding.
+A single attention head looks at all positions through one "lens". **Multi-head attention** runs several independent
+heads in parallel, each attending to a different subspace of the embedding.
 
 ### The Attention Interface
+
 **File**: `nn/Attention.java`
 
 Both attention types implement a common interface:
@@ -467,11 +551,13 @@ Both attention types implement a common interface:
 ```java
 public interface Attention {
     Value[][] forward(Value[][] input);
+
     List<Value> parameters();
 }
 ```
 
-`TransformerBlock` holds an `Attention` reference, and picks the implementation based on a `useMultiHead` flag — allowing the two approaches to be compared directly.
+`TransformerBlock` holds an `Attention` reference, and picks the implementation based on a `useMultiHead` flag —
+allowing the two approaches to be compared directly.
 
 ### How Multi-Head Works
 
@@ -494,11 +580,13 @@ With `embDim=16` and `numHeads=4`, each head has `headDim=4`. Head 0 attends ove
 ### Why Multi-Head?
 
 Each head can specialize:
+
 - One head might track syntactic patterns
 - Another might track positional proximity
 - Another might track semantic similarity
 
-Crucially, the **parameter count is identical** to single-head attention — multi-head just uses the same parameters more efficiently by attending to multiple subspaces simultaneously.
+Crucially, the **parameter count is identical** to single-head attention — multi-head just uses the same parameters more
+efficiently by attending to multiple subspaces simultaneously.
 
 ---
 
@@ -506,7 +594,8 @@ Crucially, the **parameter count is identical** to single-head attention — mul
 
 **File**: `optimizer/AdamOptimizer.java`
 
-Plain SGD (`param -= lr * grad`) has one learning rate for all parameters. **Adam (Adaptive Moment Estimation)** uses per-parameter adaptive learning rates.
+Plain SGD (`param -= lr * grad`) has one learning rate for all parameters. **Adam (Adaptive Moment Estimation)** uses
+per-parameter adaptive learning rates.
 
 ### Update Rule
 
@@ -520,28 +609,39 @@ v̂ = v / (1 - β2^t)                  # bias-corrected second moment
 param -= lr * m̂ / (sqrt(v̂) + ε)
 ```
 
-**First moment** (m): exponentially weighted average of gradients. Provides momentum — parameters that consistently receive gradients in the same direction update faster.
+**First moment** (m): exponentially weighted average of gradients. Provides momentum — parameters that consistently
+receive gradients in the same direction update faster.
 
-**Second moment** (v): exponentially weighted average of squared gradients. Normalizes the update by the recent gradient magnitude — parameters with large, noisy gradients get smaller updates.
+**Second moment** (v): exponentially weighted average of squared gradients. Normalizes the update by the recent gradient
+magnitude — parameters with large, noisy gradients get smaller updates.
 
-**Bias correction**: early in training, `m` and `v` are initialized to 0 and are biased toward zero. Dividing by `(1 - β^t)` corrects for this.
+**Bias correction**: early in training, `m` and `v` are initialized to 0 and are biased toward zero. Dividing by
+`(1 - β^t)` corrects for this.
 
 **Hyperparameters used**: `β1=0.85`, `β2=0.99`, `ε=1e-8`
 
 ### Linear Learning Rate Decay
 
-```java
-lr = initialLR * (1 - step / numSteps)
-```
-
-Starts at `0.01` and linearly decays to nearly `0` by the final step. Early training takes large steps to explore; later training takes small, precise steps to converge.
+Starts at `0.01` and linearly decays to nearly `0` by the final step. Early training takes large steps to explore; later
+training takes small, precise steps to converge.
 
 ### Training Loop Pattern
 
 ```java
-optimizer.zeroGradient(model.parameters());   // clear old gradients
-double loss = model.trainStep(example);        // forward + backward
-optimizer.step(model.parameters(), lr);        // Adam update
+private void run() {
+    for (int step = 0; step < numberOfSteps; step++) {
+        double learningRate = initialLearningRate * (1.0 - (double) step / numberOfSteps);
+
+        optimizer.zeroGradient(model.parameters());
+        double loss = model.trainStep(examples.get(step % examples.size()));
+        optimizer.step(model.parameters(), learningRate);
+
+        if ((step + 1) % 100 == 0) {
+            System.out.printf("Step %4d / %4d | Loss: %.4f | LR: %.6f%n",
+                    step + 1, numberOfSteps, loss, learningRate);
+        }
+    }
+}
 ```
 
 Gradients must be zeroed before each backward pass because `Value.backward()` *accumulates* gradients (`+=`).
@@ -551,77 +651,53 @@ Gradients must be zeroed before each backward pass because `Value.backward()` *a
 ## 11. Design Decisions
 
 ### No bias in Linear layers
-Modern transformers (LLaMA, Mistral) remove bias terms. Since RMSNorm already handles scale and shift, biases add parameters without meaningful benefit. Removing them reduces the parameter count and matches current practice.
+
+Modern transformers (LLaMA, Mistral) remove bias terms. Since RMSNorm already handles scale and shift, biases add
+parameters without meaningful benefit. Removing them reduces the parameter count and matches current practice.
 
 ### Learnable gamma in RMSNorm
-Although Karpathy's minimal version omits gamma, we keep it. It starts at 1.0 (identity) and only changes if the optimizer finds a better value — in the worst case it's a no-op, in the best case it adds useful expressiveness.
+
+Although Karpathy's minimal version omits gamma, we keep it. It starts at 1.0 (identity) and only changes if the
+optimizer finds a better value — in the worst case it's a no-op, in the best case it adds useful expressiveness.
 
 ### Pre-Norm vs Post-Norm
-We apply RMSNorm *before* each sub-layer (Pre-Norm). The original transformer paper used Post-Norm (after), but Pre-Norm is more stable and is the convention in modern models.
+
+We apply RMSNorm *before* each sub-layer (Pre-Norm). The original transformer paper used Post-Norm (after), but Pre-Norm
+is more stable and is the convention in modern models.
 
 ### Character-level tokenization
-Simple, no dependencies, vocabulary size is tiny (27 tokens). Sub-optimal for real language (BPE or WordPiece would give much better compression) but perfect for learning the fundamentals.
+
+Simple, no dependencies, vocabulary size is tiny (27 tokens). Sub-optimal for real language (BPE or WordPiece would give
+much better compression) but perfect for learning the fundamentals.
 
 ### Xavier/Glorot initialization
-Weights are initialized as Gaussian with `scale = sqrt(2 / (in + out))`. This keeps the variance of activations approximately constant through layers, preventing gradients from vanishing or exploding at initialization.
+
+Weights are initialized as Gaussian with `scale = sqrt(2 / (in + out))`. This keeps the variance of activations
+approximately constant through layers, preventing gradients from vanishing or exploding at initialization.
 
 ### BOS on both sides
-Surrounding each name with `<BOS>` on both ends teaches the model two things simultaneously: how names begin (from BOS → first char) and how names end (last char → BOS).
+
+Surrounding each name with `<BOS>` on both ends teaches the model two things simultaneously: how names begin (from BOS →
+first char) and how names end (last char → BOS).
 
 ### Per-token vs per-document training
-Karpathy's original averages loss over all positions in a document and does one backward pass per document. Our implementation does one backward pass per token pair (randomly sampled). Per-document would give more stable gradients; per-token is simpler and still converges.
+
+Karpathy's original averages loss over all positions in a document and does one backward pass per document. Our
+implementation does one backward pass per token pair (randomly sampled). Per-document would give more stable gradients;
+per-token is simpler and still converges.
 
 ---
 
-## 12. Package Structure
-
-```
-com.anirudhology.microgpt
-│
-├── Runner.java                     Entry point, runs all 6 steps in sequence
-│
-├── autograd/
-│   ├── Value.java                  Scalar autograd node (the engine of everything)
-│   └── ValueDemo.java              Demonstrations of autograd operations
-│
-├── tokenizer/
-│   └── CharacterTokenizer.java     Character-level tokenizer with BOS token
-│
-├── data/
-│   ├── TextCorpus.java             Downloads and reads names.txt
-│   ├── NGramDatasetBuilder.java    Builds (context, target) pairs via sliding window
-│   └── TrainingExample.java        Record: int[] context + int target
-│
-├── nn/                             Neural network building blocks
-│   ├── Linear.java                 Fully-connected layer (no bias)
-│   ├── Embedding.java              Token embedding lookup table
-│   ├── PositionalEmbedding.java    Positional embedding lookup table
-│   ├── RMSNormalization.java       RMSNorm with learnable gamma
-│   ├── Attention.java              Interface for attention mechanisms
-│   ├── CausalSelfAttention.java    Single-head causal self-attention
-│   ├── MultiHeadCausalSelfAttention.java  Multi-head causal self-attention
-│   └── TransformerBlock.java       Pre-Norm block: attention + MLP + residuals
-│
-├── model/                          Full language models
-│   ├── BaselineBigramModel.java    Step 1: statistical bigram
-│   ├── NeuralBigramModel.java      Step 2: neural bigram, manual gradients
-│   ├── NeuralBigramAutogradModel.java  Step 3: neural bigram, autograd
-│   ├── MLPLanguageModel.java       Step 4: MLP with context window
-│   └── GPTLanguageModel.java       Steps 5–6: full transformer (flag for single/multi-head)
-│
-└── optimizer/
-    └── AdamOptimizer.java          Adam with bias correction + LR decay support
-```
-
 ### The 6-Step Progression
 
-| Step | Model | Key Concept Introduced | Approx. NLL |
-|------|-------|----------------------|-------------|
-| 1 | Statistical Bigram | Counting, Laplace smoothing, sampling | ~2.45 |
-| 2 | Neural Bigram (manual) | Logits, softmax, SGD, manual gradients | ~2.35 |
-| 3 | Neural Bigram (autograd) | Computational graph, chain rule, `Value` | ~2.35 |
-| 4 | MLP | Embeddings, context window, hidden layer, tanh | ~2.1 |
-| 5 | GPT (single-head) | Attention, causal mask, residuals, RMSNorm | ~2.4 |
-| 6 | GPT (multi-head) | Multi-head attention, `Attention` interface, Adam | ~2.3 |
+| Step | Model                    | Key Concept Introduced                            | Approx. NLL |
+|------|--------------------------|---------------------------------------------------|-------------|
+| 1    | Statistical Bigram       | Counting, Laplace smoothing, sampling             | ~2.45       |
+| 2    | Neural Bigram (manual)   | Logits, softmax, SGD, manual gradients            | ~2.35       |
+| 3    | Neural Bigram (autograd) | Computational graph, chain rule, `Value`          | ~2.35       |
+| 4    | MLP                      | Embeddings, context window, hidden layer, tanh    | ~2.1        |
+| 5    | GPT (single-head)        | Attention, causal mask, residuals, RMSNorm        | ~2.4        |
+| 6    | GPT (multi-head)         | Multi-head attention, `Attention` interface, Adam | ~2.3        |
 
-Steps 5–6 have higher NLL than the MLP at 1000 training steps because the transformer has more parameters and needs more steps to converge — but it has far greater capacity for longer sequences.
+Steps 5–6 have higher NLL than the MLP at 1000 training steps because the transformer has more parameters and needs more
+steps to converge — but it has far greater capacity for longer sequences.

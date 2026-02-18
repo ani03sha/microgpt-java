@@ -1,12 +1,21 @@
 # MicroGPT Java
 
-A Java implementation inspired by Andrej
-Karpathy's [microgpt.py](https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95) — a minimal transformer
-language model built entirely from scratch with **no external ML dependencies**.
+[Andrej Karpathy](https://karpathy.ai/) is a GOAT, and we all know that. He posted a banger on X few days back - A pure,
+dependency-free Python implementation of GPT.
+
+![Karpathy's Tweet](/docs/karpathy_tweet.png)
+
+Here's his implementation: [microgpt.py](https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95). It is a
+minimal transformer language model built entirely from scratch with **no external ML dependencies**.
+
+I found it very interesting and tried to implement on my own and this project is the result. It is a Java implementation
+of Karpathy's MicroGPT with few additions.
+
+## What it does?
 
 The project trains a character-level language model on a dataset of names and generates new, plausible-sounding names.
-More importantly, it is structured as a **step-by-step educational journey** — starting from the simplest statistical
-baseline and progressively building up to a full GPT-style transformer.
+More importantly, I tried to engineer it as a **step-by-step educational journey**, starting from the simplest
+statistical baseline and progressively building up to a full GPT-style transformer.
 
 ---
 
@@ -49,17 +58,7 @@ Sample 10: ena
 
 ## Architecture
 
-```
-tokens
-  └─ token embedding + positional embedding
-       └─ RMSNorm
-            └─ N × TransformerBlock
-                    ├─ RMSNorm → Attention → residual
-                    └─ RMSNorm → MLP (expand→ReLU→contract) → residual
-                         └─ RMSNorm
-                              └─ Linear (output head)
-                                   └─ logits [vocabularySize]
-```
+![MicroGPT Architecture](/docs/microgpt_architecture.png)
 
 **Hyperparameters** (matching Karpathy's gist):
 
@@ -69,47 +68,6 @@ tokens
 - Attention heads: 4
 - Transformer layers: 1
 - Total parameters: ~4,256
-
----
-
-## Project Structure
-
-```
-src/main/java/com/anirudhology/microgpt/
-│
-├── Runner.java                          Entry point — runs all 6 steps
-│
-├── autograd/
-│   └── Value.java                       Scalar autograd engine (the foundation)
-│
-├── tokenizer/
-│   └── CharacterTokenizer.java          Character-level tokenizer with BOS token
-│
-├── data/
-│   ├── TextCorpus.java                  Downloads and reads names.txt
-│   ├── NGramDatasetBuilder.java         Sliding-window (context, target) pairs
-│   └── TrainingExample.java             Record: int[] context + int target
-│
-├── nn/                                  Neural network building blocks
-│   ├── Linear.java                      Fully-connected layer (no bias)
-│   ├── Embedding.java                   Token embedding lookup table
-│   ├── PositionalEmbedding.java         Positional embedding lookup table
-│   ├── RMSNormalization.java            RMSNorm with learnable gamma
-│   ├── Attention.java                   Interface for attention mechanisms
-│   ├── CausalSelfAttention.java         Single-head causal self-attention
-│   ├── MultiHeadCausalSelfAttention.java  Multi-head causal self-attention
-│   └── TransformerBlock.java            Pre-Norm block: attention + MLP + residuals
-│
-├── model/                               Full language models
-│   ├── BaselineBigramModel.java         Step 1
-│   ├── NeuralBigramModel.java           Step 2
-│   ├── NeuralBigramAutogradModel.java   Step 3
-│   ├── MLPLanguageModel.java            Step 4
-│   └── GPTLanguageModel.java            Steps 5–6
-│
-└── optimizer/
-    └── AdamOptimizer.java               Adam with bias correction
-```
 
 ---
 
@@ -136,14 +94,14 @@ mvn exec:java -Dexec.mainClass="com.anirudhology.microgpt.Runner"
 - **Pre-Norm style** — RMSNorm applied before each sub-layer, more stable than the original Post-Norm transformer
 - **Learnable gamma in RMSNorm** — starts at 1.0 (identity), only diverges if the optimizer finds it useful
 - **`Attention` interface** — allows `TransformerBlock` to use either `CausalSelfAttention` or
-  `MultiHeadCausalSelfAttention` transparently, making the single→multi-head progression visible in code
+  `MultiHeadCausalSelfAttention` transparently, making the single → multi-head progression visible in code
 
 ---
 
 ## Learn More
 
-See [CONCEPTS.md](CONCEPTS.md) for a detailed walkthrough of every concept in the project — tokenization, autograd,
-attention, transformers, Adam, and all the design decisions — explained in logical order from basic to advanced.
+See [CONCEPTS.md](docs/CONCEPTS.md) for a detailed walkthrough of every concept in the project including tokenization,
+autograd, attention, transformers, Adam, and all the design decisions, explained in logical order from basic to advanced.
 
 ---
 
