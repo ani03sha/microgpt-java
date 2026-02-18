@@ -20,8 +20,6 @@ import java.util.Random;
  */
 public class TransformerBlock {
 
-    private final int embeddingDimension;
-
     // Attention sub-layer
     private final RMSNormalization attentionNormalization;
     private final CausalSelfAttention attention;
@@ -32,7 +30,6 @@ public class TransformerBlock {
     private final Linear mlpFc2; // Contract: 4 * embeddingDimension -> embeddingDimension;
 
     public TransformerBlock(int embeddingDimension, int headDimension, Random random) {
-        this.embeddingDimension = embeddingDimension;
 
         // Attention sub-layer
         this.attentionNormalization = new RMSNormalization(embeddingDimension);
@@ -40,7 +37,7 @@ public class TransformerBlock {
 
         // MLP sub-layer
         int mlpHiddenDimension = 4 * embeddingDimension;
-        this.mlpNormalization = new RMSNormalization(mlpHiddenDimension);
+        this.mlpNormalization = new RMSNormalization(embeddingDimension);
         this.mlpFc1 = new Linear(embeddingDimension, mlpHiddenDimension, random);
         this.mlpFc2 = new Linear(mlpHiddenDimension, embeddingDimension, random);
     }
@@ -80,6 +77,7 @@ public class TransformerBlock {
     public List<Value> parameters() {
         final List<Value> params = new ArrayList<>();
         params.addAll(this.attentionNormalization.parameters());
+        params.addAll(this.attention.parameters());
         params.addAll(this.mlpNormalization.parameters());
         params.addAll(this.mlpFc1.parameters());
         params.addAll(this.mlpFc2.parameters());

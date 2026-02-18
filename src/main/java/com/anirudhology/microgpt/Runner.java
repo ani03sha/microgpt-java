@@ -4,6 +4,7 @@ import com.anirudhology.microgpt.datasets.NGramDatasetBuilder;
 import com.anirudhology.microgpt.tokenizer.CharacterTokenizer;
 import com.anirudhology.microgpt.tokenizer.TextCorpus;
 import com.anirudhology.microgpt.training.BaselineBigramModel;
+import com.anirudhology.microgpt.training.GPTLanguageModel;
 import com.anirudhology.microgpt.training.MLPLanguageModel;
 import com.anirudhology.microgpt.training.NeuralBigramAutogradModel;
 import com.anirudhology.microgpt.training.NeuralBigramModel;
@@ -26,10 +27,11 @@ public class Runner {
         final List<String> trainDocs = docs.subList(0, split);
         final List<String> validationDocs = docs.subList(split, docs.size());
 
-        runBaselineBigram(tokenizer, docs);
+        /*runBaselineBigram(tokenizer, docs);
         runNeuralBigram(tokenizer, trainDocs, validationDocs);
         runNeuralAutogradBigram(tokenizer, trainDocs, validationDocs);
-        runMLPLanguageModel(tokenizer, docs);
+        runMLPLanguageModel(tokenizer, docs);*/
+        runGPTLanguageModel(tokenizer, docs);
     }
 
     private static void runNeuralAutogradBigram(CharacterTokenizer tokenizer, List<String> trainDocs, List<String> validationDocs) {
@@ -133,6 +135,66 @@ public class Runner {
                 System.out.printf("Sample %d: %s%n", i + 1, sample);
                 System.out.println();
             }
+        }
+    }
+
+    private static void runGPTLanguageModel(CharacterTokenizer tokenizer, List<String> documents) {
+        // Hyperparameters
+        final int blockSize = 16;
+        final int embeddingDimension = 16;
+        final int headDimension = 16;
+        final int numberOfLayers = 1;
+
+        // Build dataset
+        final List<TrainingExample> examples = NGramDatasetBuilder.build(documents, tokenizer, blockSize, true);
+        System.out.printf("Total training examples: %d%n", examples.size());
+
+        // Create Model
+        final GPTLanguageModel model = new GPTLanguageModel(
+                tokenizer.getVocabularySize(),
+                blockSize,
+                embeddingDimension,
+                headDimension,
+                numberOfLayers,
+                42L
+        );
+
+        // Training
+        int epochs = 10;
+        double learningRate = 0.01;
+
+        for (int epoch = 0; epoch < epochs; epoch++) {
+            long start = System.currentTimeMillis();
+            double totalLoss = 0.0;
+
+            Collections.shuffle(examples, new Random(42L + epoch));
+
+            for (int i = 0; i < examples.size(); i++) {
+                totalLoss += model.trainStep(examples.get(i), learningRate);
+
+                if ((i + 1) % 1000 == 0) {
+                    System.out.printf("Epoch %d, Step %d/%d, AvgLoss: %.4f%n",
+                            epoch + 1, i + 1,
+                            examples.size(),
+                            totalLoss / (i + 1));
+
+                }
+            }
+
+            long elapsed = (System.currentTimeMillis() - start) / 1000;
+            System.out.printf("Epoch %d complete: Loss=%.4f (%ds)%n",
+                    epoch + 1,
+                    totalLoss / examples.size(),
+                    elapsed
+            );
+
+            learningRate *= 0.9;
+
+            System.out.println("\n--- Samples ---");
+            for (int i = 0; i < 5; i++) {
+                System.out.printf("Sample %d: %s%n", i + 1, model.generate(tokenizer, 20, 1.0));
+            }
+            System.out.println();
         }
     }
 }
