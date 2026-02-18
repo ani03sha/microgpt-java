@@ -23,10 +23,10 @@ baseline to the full transformer. Each section explains the *what*, the *why*, a
 
 ## 1. Problem Statement: Language Modeling
 
-The goal is simple: **given a sequence of characters, predict the next character**.
+The goal of this project is simple: **given a sequence of characters, predict the next character**.
 
 We train on a list of names (e.g. `emma`, `olivia`, `noah`). After training, the model generates new names that look
-plausible, thus, it has learned the statistical patterns of how characters follow each other in names.
+plausible. Thus, the model learns statistical patterns of how characters follow each other in names.
 
 **Why names?** They are short, structured enough to show real learning, but simple enough to train from scratch in
 minutes.
@@ -100,7 +100,8 @@ public record TrainingExample(int[] context, int target) {
 
 **File**: `model/BaselineBigramModel.java`
 
-The simplest possible language model: **count how often each character follows each other character**, then normalize.
+This class represents the simplest possible language model where we count how often each character follows each other
+character, then normalize.
 
 ### Counting
 
@@ -153,12 +154,12 @@ This model achieves ~2.45 NLL. Any neural model that can't beat this isn't learn
 
 **File**: `model/NeuralBigramModel.java`
 
-Same prediction task, but instead of a count table we use a **learned weight matrix** and gradient descent.
+Here also we have prediction task, but instead of a count table we use a **learned weight matrix** and gradient descent.
 
 ### Logits
 
 The weight matrix $W \in \mathbb{R}^{27 \times 27}$ holds raw unnormalized scores called *logits*. The value $W[i][j]$
-represents "how likely is character $j$ to follow character $i$" — but as a real number (positive or negative), not a
+represents "how likely is character $j$ to follow character $i$", but as a real number (positive or negative), not a
 probability.
 
 ### Softmax
@@ -217,7 +218,7 @@ computes gradients automatically.
 
 ### The Computational Graph
 
-Every operation creates a **computation graph** — a directed acyclic graph where:
+Every operation creates a **computation graph**. It is a directed acyclic graph where:
 
 - **Nodes** are scalar values (`Value` objects)
 - **Edges** connect each result to its inputs
@@ -236,7 +237,7 @@ Backpropagation is just the chain rule applied systematically:
 $$\frac{\partial \mathcal{L}}{\partial x} = \frac{\partial \mathcal{L}}{\partial \text{output}} \cdot \frac{\partial \text{output}}{\partial x}$$
 
 Where $\frac{\partial \mathcal{L}}{\partial \text{output}}$ is the gradient flowing in from above, and
-$\frac{\partial \text{output}}{\partial x}$ is the *local gradient* — how this operation affects its inputs.
+$\frac{\partial \text{output}}{\partial x}$ is the *local gradient*, how this operation affects its inputs.
 
 ### Operations and their Local Gradients
 
@@ -319,10 +320,6 @@ A fully-connected layer: $\mathbf{y} = \mathbf{x} W$
 
 ```java
 public Value[] forward(Value[] input) {
-    if (input.length != this.inputDimension) {
-        throw new IllegalArgumentException(String.format("Expected input size %d, got %d", this.inputDimension, input.length));
-    }
-
     Value[] output = new Value[this.outputDimension];
 
     // For each output neuron
@@ -384,7 +381,7 @@ $$\tanh(x) = \frac{e^x - e^{-x}}{e^x + e^{-x}}$$
 
 **Files**: `nn/CausalSelfAttention.java`, `nn/TransformerBlock.java`, `model/GPTLanguageModel.java`
 
-The MLP mixes all context positions together by flattening. Attention is different — it lets each position *selectively
+The MLP mixes all context positions together by flattening. Attention is different because it lets each position *selectively
 focus* on other positions.
 
 ### RMSNorm
@@ -584,11 +581,11 @@ $$\hat{m}_t = \frac{m_t}{1 - \beta_1^t}, \qquad \hat{v}_t = \frac{v_t}{1 - \beta
 
 $$\theta_t \leftarrow \theta_{t-1} - \frac{\eta\, \hat{m}_t}{\sqrt{\hat{v}_t} + \varepsilon}$$
 
-**First moment** ($m$): exponentially weighted average of gradients. Provides momentum — parameters that consistently
+**First moment** ($m$): exponentially weighted average of gradients. Provides momentum: parameters that consistently
 receive gradients in the same direction update faster.
 
 **Second moment** ($v$): exponentially weighted average of squared gradients. Normalizes the update by the recent
-gradient magnitude — parameters with large, noisy gradients get smaller updates.
+gradient magnitude: parameters with large, noisy gradients get smaller updates.
 
 **Bias correction**: early in training, $m$ and $v$ are initialized to $0$ and are biased toward zero. Dividing by
 $(1 - \beta^t)$ corrects for this.
@@ -635,7 +632,7 @@ parameters without meaningful benefit. Removing them reduces the parameter count
 ### Learnable gamma in RMSNorm
 
 Although Karpathy's minimal version omits $\gamma$, we keep it. It starts at $1.0$ (identity) and only changes if the
-optimizer finds a better value — in the worst case it's a no-op, in the best case it adds useful expressiveness.
+optimizer finds a better value. In the worst case it's a no-op, in the best case it adds useful expressiveness.
 
 ### Pre-Norm vs Post-Norm
 
